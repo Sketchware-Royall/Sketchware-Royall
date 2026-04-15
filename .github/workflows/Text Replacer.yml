@@ -1,4 +1,4 @@
-name: Replace Lines by Number
+name: Unified Replace Tool
 
 on:
   workflow_dispatch:
@@ -10,19 +10,33 @@ on:
         type: choice
         options:
           - preview
-          - apply
+          - line
+          - text
 
       file_input:
         description: "File name OR full path"
         required: true
 
       lines:
-        description: "Lines (e.g. 10 or 10-12 or 10,20)"
+        description: "Lines (only for line mode)"
+        required: false
+
+      find_text:
+        description: "Text to find (for text mode)"
+        required: false
+
+      replace_text:
+        description: "Replacement text"
         required: true
 
-      new_content:
-        description: "New content (can be multi-line)"
+      case_sensitive:
+        description: "Case sensitive (text mode only)"
         required: true
+        default: "true"
+        type: choice
+        options:
+          - true
+          - false
 
 jobs:
   replace:
@@ -56,35 +70,45 @@ jobs:
 
           echo "FILE=$FILE" >> $GITHUB_ENV
 
-      - name: Build sed expression
+      - name: Build commands
         run: |
-          INPUT="${{ github.event.inputs.lines }}"
-          NEW="${{ github.event.inputs.new_content }}"
+          MODE="${{ github.event.inputs.mode }}"
+          FILE="${{ env.FILE }}"
 
-          SED_EXPR=""
+          if [ "$MODE" = "line" ] || [ "$MODE" = "preview" ]; then
+            INPUT="${{ github.event.inputs.lines }}"
+            NEW="${{ github.event.inputs.replace_text }}"
 
-          IFS=',' read -ra PARTS <<< "$INPUT"
-          for part in "${PARTS[@]}"; do
-            if [[ "$part" == *"-"* ]]; then
-              START=$(echo $part | cut -d'-' -f1)
-              END=$(echo $part | cut -d'-' -f2)
-              SED_EXPR="${SED_EXPR}${START},${END}c\\$NEW\n"
-            else
-              SED_EXPR="${SED_EXPR}${part}c\\$NEW\n"
+            SED_EXPR=""
+
+            if [ -n "$INPUT" ]; then
+              IFS=',' read -ra PARTS <<< "$INPUT"
+              for part in "${PARTS[@]}"; do
+                if [[ "$part" == *"-"* ]]; then
+                  START=$(echo $part | cut -d'-' -f1)
+                  END=$(echo $part | cut -d'-' -f2)
+                  SED_EXPR="${SED_EXPR}${START},${END}c\\$NEW\n"
+                else
+                  SED_EXPR="${SED_EXPR}${part}c\\$NEW\n"
+                fi
+              done
             fi
-          done
 
-          echo "SED_EXPR<<EOF" >> $GITHUB_ENV
-          echo "$SED_EXPR" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+            echo "SED_EXPR<<EOF" >> $GITHUB_ENV
+            echo "$SED_EXPR" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
 
-      - name: Preview changes
+      - name: Preview
         if: ${{ github.event.inputs.mode == 'preview' }}
         run: |
           FILE="${{ env.FILE }}"
           SED_EXPR="${{ env.SED_EXPR }}"
+          FIND="${{ github.event.inputs.find_text }}"
+          REPLACE="${{ github.event.inputs.replace_text }}"
+          CASE="${{ github.event.inputs.case_sensitive }}"
 
-          echo "🔍 Preview (before → after)"
+          echo "🔍 Preview"
           echo "--------------------------------"
 
           echo "📄 Original:"
@@ -92,14 +116,22 @@ jobs:
 
           echo "--------------------------------"
 
-          echo "✏️ After replacement:"
-          sed "$SED_EXPR" "$FILE" | nl -ba | sed -n '1,200p'
+          echo "✏️ After:"
+
+          if [ -n "$SED_EXPR" ]; then
+            sed "$SED_EXPR" "$FILE" | nl -ba | sed -n '1,200p'
+          else
+            FLAG="g"
+            if [ "$CASE" = "false" ]; then FLAG="gi"; fi
+
+            perl -pe "s/\Q$FIND\E/\Q$REPLACE\E/$FLAG" "$FILE" | nl -ba | sed -n '1,200p'
+          fi
 
           echo "--------------------------------"
-          echo "✅ Preview mode (no changes applied)"
+          echo "✅ Preview only"
 
-      - name: Apply replacement
-        if: ${{ github.event.inputs.mode == 'apply' }}
+      - name: Apply line replace
+        if: ${{ github.event.inputs.mode == 'line' }}
         run: |
           FILE="${{ env.FILE }}"
           SED_EXPR="${{ env.SED_EXPR }}"
@@ -108,8 +140,21 @@ jobs:
           sed "$SED_EXPR" "$FILE" > "$TMP"
           mv "$TMP" "$FILE"
 
+      - name: Apply text replace
+        if: ${{ github.event.inputs.mode == 'text' }}
+        run: |
+          FILE="${{ env.FILE }}"
+          FIND="${{ github.event.inputs.find_text }}"
+          REPLACE="${{ github.event.inputs.replace_text }}"
+          CASE="${{ github.event.inputs.case_sensitive }}"
+
+          FLAG="g"
+          if [ "$CASE" = "false" ]; then FLAG="gi"; fi
+
+          perl -pi -e "s/\Q$FIND\E/\Q$REPLACE\E/$FLAG" "$FILE"
+
       - name: Commit & Push
-        if: ${{ github.event.inputs.mode == 'apply' }}
+        if: ${{ github.event.inputs.mode != 'preview' }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
@@ -118,6 +163,6 @@ jobs:
             echo "No changes"
           else
             git add .
-            git commit -m "Replace lines in ${{ env.FILE }}"
+            git commit -m "Unified replace in ${{ env.FILE }}"
             git push
           fi
