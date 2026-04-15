@@ -84,12 +84,12 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         boolean has = hasLog();
 
         MenuItem clear = m.add(0,1,0,"Clear");
-        clear.setIcon(android.R.drawable.ic_menu_delete);
+        clear.setIcon(R.drawable.delete);
         clear.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         clear.setEnabled(has);
 
         MenuItem format = m.add(0,2,1,"Format");
-        format.setIcon(android.R.drawable.ic_menu_edit);
+        format.setIcon(R.drawable.StyleFilter);
         format.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         format.setEnabled(has);
 
