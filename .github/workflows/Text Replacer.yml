@@ -1,4 +1,4 @@
-name: Unified Replace Tool
+name: Smart Replace Tool
 
 on:
   workflow_dispatch:
@@ -6,23 +6,22 @@ on:
       mode:
         description: "Select mode"
         required: true
-        default: "preview"
+        default: "Preview"
         type: choice
         options:
-          - preview
-          - line
-          - text
+          - Preview
+          - Replace
 
-      file_input:
-        description: "File name OR full path"
+      file_path:
+        description: "Full file path"
         required: true
 
       lines:
-        description: "Lines (only for line mode)"
+        description: "Lines (optional, e.g. 10 or 10-12)"
         required: false
 
       find_text:
-        description: "Text to find (for text mode)"
+        description: "Text to find (used if lines empty)"
         required: false
 
       replace_text:
@@ -30,7 +29,7 @@ on:
         required: true
 
       case_sensitive:
-        description: "Case sensitive (text mode only)"
+        description: "Case sensitive (text mode)"
         required: true
         default: "true"
         type: choice
@@ -45,62 +44,43 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve file
+      - name: Validate file
         run: |
-          INPUT="${{ github.event.inputs.file_input }}"
+          FILE="${{ github.event.inputs.file_path }}"
 
-          if [ -f "$INPUT" ]; then
-            FILE="$INPUT"
-          else
-            MATCHES=$(find . -type f -name "$INPUT")
-            COUNT=$(echo "$MATCHES" | grep -c .)
-
-            if [ "$COUNT" -eq 0 ]; then
-              echo "❌ No file found"
-              exit 1
-            elif [ "$COUNT" -gt 1 ]; then
-              echo "⚠️ Multiple files found:"
-              echo "$MATCHES" | nl
-              echo "👉 Use full path"
-              exit 1
-            else
-              FILE="$MATCHES"
-            fi
+          if [ ! -f "$FILE" ]; then
+            echo "❌ File not found: $FILE"
+            exit 1
           fi
 
           echo "FILE=$FILE" >> $GITHUB_ENV
 
-      - name: Build commands
+      - name: Build logic
         run: |
-          MODE="${{ github.event.inputs.mode }}"
-          FILE="${{ env.FILE }}"
+          INPUT="${{ github.event.inputs.lines }}"
+          NEW="${{ github.event.inputs.replace_text }}"
 
-          if [ "$MODE" = "line" ] || [ "$MODE" = "preview" ]; then
-            INPUT="${{ github.event.inputs.lines }}"
-            NEW="${{ github.event.inputs.replace_text }}"
+          SED_EXPR=""
 
-            SED_EXPR=""
-
-            if [ -n "$INPUT" ]; then
-              IFS=',' read -ra PARTS <<< "$INPUT"
-              for part in "${PARTS[@]}"; do
-                if [[ "$part" == *"-"* ]]; then
-                  START=$(echo $part | cut -d'-' -f1)
-                  END=$(echo $part | cut -d'-' -f2)
-                  SED_EXPR="${SED_EXPR}${START},${END}c\\$NEW\n"
-                else
-                  SED_EXPR="${SED_EXPR}${part}c\\$NEW\n"
-                fi
-              done
-            fi
-
-            echo "SED_EXPR<<EOF" >> $GITHUB_ENV
-            echo "$SED_EXPR" >> $GITHUB_ENV
-            echo "EOF" >> $GITHUB_ENV
+          if [ -n "$INPUT" ]; then
+            IFS=',' read -ra PARTS <<< "$INPUT"
+            for part in "${PARTS[@]}"; do
+              if [[ "$part" == *"-"* ]]; then
+                START=$(echo $part | cut -d'-' -f1)
+                END=$(echo $part | cut -d'-' -f2)
+                SED_EXPR="${SED_EXPR}${START},${END}c\\$NEW\n"
+              else
+                SED_EXPR="${SED_EXPR}${part}c\\$NEW\n"
+              fi
+            done
           fi
 
+          echo "SED_EXPR<<EOF" >> $GITHUB_ENV
+          echo "$SED_EXPR" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Preview
-        if: ${{ github.event.inputs.mode == 'preview' }}
+        if: ${{ github.event.inputs.mode == 'Preview' }}
         run: |
           FILE="${{ env.FILE }}"
           SED_EXPR="${{ env.SED_EXPR }}"
@@ -115,12 +95,13 @@ jobs:
           nl -ba "$FILE" | sed -n '1,200p'
 
           echo "--------------------------------"
-
           echo "✏️ After:"
 
           if [ -n "$SED_EXPR" ]; then
+            echo "Mode: Line Replace"
             sed "$SED_EXPR" "$FILE" | nl -ba | sed -n '1,200p'
           else
+            echo "Mode: Text Replace"
             FLAG="g"
             if [ "$CASE" = "false" ]; then FLAG="gi"; fi
 
@@ -130,31 +111,30 @@ jobs:
           echo "--------------------------------"
           echo "✅ Preview only"
 
-      - name: Apply line replace
-        if: ${{ github.event.inputs.mode == 'line' }}
+      - name: Apply changes
+        if: ${{ github.event.inputs.mode == 'Replace' }}
         run: |
           FILE="${{ env.FILE }}"
           SED_EXPR="${{ env.SED_EXPR }}"
-
-          TMP=$(mktemp)
-          sed "$SED_EXPR" "$FILE" > "$TMP"
-          mv "$TMP" "$FILE"
-
-      - name: Apply text replace
-        if: ${{ github.event.inputs.mode == 'text' }}
-        run: |
-          FILE="${{ env.FILE }}"
           FIND="${{ github.event.inputs.find_text }}"
           REPLACE="${{ github.event.inputs.replace_text }}"
           CASE="${{ github.event.inputs.case_sensitive }}"
 
-          FLAG="g"
-          if [ "$CASE" = "false" ]; then FLAG="gi"; fi
+          if [ -n "$SED_EXPR" ]; then
+            echo "Applying line replace"
+            TMP=$(mktemp)
+            sed "$SED_EXPR" "$FILE" > "$TMP"
+            mv "$TMP" "$FILE"
+          else
+            echo "Applying text replace"
+            FLAG="g"
+            if [ "$CASE" = "false" ]; then FLAG="gi"; fi
 
-          perl -pi -e "s/\Q$FIND\E/\Q$REPLACE\E/$FLAG" "$FILE"
+            perl -pi -e "s/\Q$FIND\E/\Q$REPLACE\E/$FLAG" "$FILE"
+          fi
 
       - name: Commit & Push
-        if: ${{ github.event.inputs.mode != 'preview' }}
+        if: ${{ github.event.inputs.mode == 'Replace' }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
@@ -163,6 +143,6 @@ jobs:
             echo "No changes"
           else
             git add .
-            git commit -m "Unified replace in ${{ env.FILE }}"
+            git commit -m "Smart replace in ${{ env.FILE }}"
             git push
           fi
