@@ -8,19 +8,20 @@ scan:
 runs-on: ubuntu-latest
 
 steps:
-  - uses: actions/checkout@v4
+  - name: Checkout repo
+    uses: actions/checkout@v4
 
-  - name: Scan for Firebase / Google usage
+  - name: Scan Firebase / Google usage
     run: |
       echo "---- Firebase / Google usage ----"
-      grep -rnE "Firebase|google_app_id|default_web_client_id|com.google.firebase|com.google.android.gms" . || true
+      grep -rnE "Firebase|google_app_id|default_web_client_id|com.google.firebase|com.google.android.gms" . || echo "No matches found"
 
   - name: Scan for google-services.json
     run: |
       echo "---- google-services.json ----"
-      find . -name "google-services.json" || true
+      find . -name "google-services.json" || echo "Not found"
 
   - name: Scan manifest meta-data
     run: |
       echo "---- Manifest Firebase meta-data ----"
-      grep -rn "com.google.firebase" app/src/main || true
+      grep -rn "com.google.firebase" app/src/main || echo "No manifest usage found"
