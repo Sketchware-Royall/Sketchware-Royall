@@ -17,7 +17,7 @@ on:
         required: true
 
       lines:
-        description: "Lines (e.g. 10 or 10-15 or 10,20)"
+        description: "Lines to delete (10,2,10-20)"
         required: true
 
 jobs:
