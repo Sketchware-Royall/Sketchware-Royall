@@ -1,0 +1,60 @@
+name: Delete Lines from File
+
+on:
+  workflow_dispatch:
+    inputs:
+      file_path:
+        description: "File path"
+        required: true
+
+      lines:
+        description: "Lines to delete (e.g. 10 or 10-15 or 10,20,30-35)"
+        required: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete lines
+        run: |
+          FILE="${{ github.event.inputs.file_path }}"
+          INPUT="${{ github.event.inputs.lines }}"
+
+          if [ ! -f "$FILE" ]; then
+            echo "File not found"
+            exit 1
+          fi
+
+          # Convert input → sed format
+          SED_EXPR=""
+
+          IFS=',' read -ra PARTS <<< "$INPUT"
+          for part in "${PARTS[@]}"; do
+            if [[ "$part" == *"-"* ]]; then
+              START=$(echo $part | cut -d'-' -f1)
+              END=$(echo $part | cut -d'-' -f2)
+              SED_EXPR="${SED_EXPR}${START},${END}d;"
+            else
+              SED_EXPR="${SED_EXPR}${part}d;"
+            fi
+          done
+
+          echo "Sed expression: $SED_EXPR"
+
+          sed -i "$SED_EXPR" "$FILE"
+
+      - name: Commit & Push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          if git diff --quiet; then
+            echo "No changes"
+          else
+            git add .
+            git commit -m "Delete lines from file"
+            git push
+          fi
