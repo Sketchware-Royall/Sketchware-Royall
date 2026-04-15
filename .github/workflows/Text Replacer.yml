@@ -61,12 +61,10 @@ jobs:
             echo "MODE_TYPE=text" >> $GITHUB_ENV
           fi
 
-      # 🔐 Write replacement safely (NO shell expansion)
+      # 🔐 SAFE write (no YAML break)
       - name: Prepare replacement content
         run: |
-          cat << 'EOF' > replace.txt
-${{ github.event.inputs.replace_text }}
-EOF
+          printf "%s\n" "${{ github.event.inputs.replace_text }}" > replace.txt
 
       # 🔍 PREVIEW
       - name: Preview
@@ -93,7 +91,8 @@ EOF
                 END=$part
               fi
 
-              FROM=$((START-2)); [ "$FROM" -lt 1 ] && FROM=1
+              FROM=$((START-2))
+              [ "$FROM" -lt 1 ] && FROM=1
               TO=$((END+2))
 
               echo "👉 Lines $START-$END"
@@ -101,7 +100,6 @@ EOF
               nl -ba "$FILE" | sed -n "${FROM},${TO}p"
 
               echo "----- AFTER ------"
-
               awk -v s="$START" -v e="$END" '
               NR==s {
                 while ((getline line < "replace.txt") > 0) print line
@@ -122,7 +120,7 @@ EOF
             grep -n "$FIND" "$FILE" || echo "No matches"
 
             echo "----- AFTER ------"
-            perl -pe "s/\Q$FIND\E/`cat replace.txt`/$FLAG" "$FILE" | grep -n "" || true
+            perl -pe "s/\Q$FIND\E/$(cat replace.txt)/$FLAG" "$FILE" | grep -n "" || true
           fi
 
       # 🚀 APPLY
@@ -168,7 +166,7 @@ EOF
             FLAG="g"
             [ "$CASE" = "false" ] && FLAG="gi"
 
-            perl -pi -e "s/\Q$FIND\E/`cat replace.txt`/$FLAG" "$FILE"
+            perl -pi -e "s/\Q$FIND\E/$(cat replace.txt)/$FLAG" "$FILE"
           fi
 
       - name: Commit & Push
