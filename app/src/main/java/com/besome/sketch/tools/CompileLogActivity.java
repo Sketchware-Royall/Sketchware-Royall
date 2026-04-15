@@ -89,7 +89,7 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         clear.setEnabled(has);
 
         MenuItem format = m.add(0,2,1,"Format");
-        format.setIcon(R.drawable.StyleFilter);
+        format.setIcon(R.drawable.stylefilter);
         format.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
         format.setEnabled(has);
 
