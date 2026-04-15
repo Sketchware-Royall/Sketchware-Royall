@@ -1,4 +1,4 @@
-name: Smart Delete Lines
+name: Lines Deleter
 
 on:
   workflow_dispatch:
@@ -6,14 +6,14 @@ on:
       mode:
         description: "Select mode"
         required: true
-        default: "preview"
+        default: "Preview"
         type: choice
         options:
-          - preview
-          - delete
+          - Preview
+          - Delete
 
       file_input:
-        description: "File name OR full path"
+        description: "File name OR Path"
         required: true
 
       lines:
@@ -21,7 +21,7 @@ on:
         required: true
 
 jobs:
-  delete:
+  Delete:
     runs-on: ubuntu-latest
 
     steps:
@@ -75,7 +75,7 @@ jobs:
           echo "Expression: $SED_EXPR"
 
       - name: Preview changes
-        if: ${{ github.event.inputs.mode == 'preview' }}
+        if: ${{ github.event.inputs.mode == 'Preview' }}
         run: |
           FILE="${{ env.FILE }}"
           SED_EXPR="${{ env.SED_EXPR }}"
@@ -88,8 +88,8 @@ jobs:
           echo "--------------------------------"
           echo "✅ Preview mode (no changes applied)"
 
-      - name: Apply delete
-        if: ${{ github.event.inputs.mode == 'delete' }}
+      - name: Apply Delete
+        if: ${{ github.event.inputs.mode == 'Delete' }}
         run: |
           FILE="${{ env.FILE }}"
           SED_EXPR="${{ env.SED_EXPR }}"
@@ -97,7 +97,7 @@ jobs:
           sed -i "$SED_EXPR" "$FILE"
 
       - name: Commit & Push
-        if: ${{ github.event.inputs.mode == 'delete' }}
+        if: ${{ github.event.inputs.mode == 'Delete' }}
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
