@@ -6,6 +6,7 @@ import android.graphics.Typeface;
 import android.os.Bundle;
 import android.view.*;
 import android.widget.*;
+import pro.sketchware.R;
 
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
