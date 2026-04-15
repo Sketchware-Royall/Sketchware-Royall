@@ -78,9 +78,8 @@ jobs:
           echo "--------------------------------"
 
           if [ "$MODE_TYPE" = "line" ]; then
-            echo "Mode: Line Replace"
-
             IFS=',' read -ra PARTS <<< "$INPUT"
+
             for part in "${PARTS[@]}"; do
               if [[ "$part" == *"-"* ]]; then
                 START=$(echo $part | cut -d'-' -f1)
@@ -92,25 +91,30 @@ jobs:
 
               FROM=$((START-2))
               TO=$((END+2))
-              if [ "$FROM" -lt 1 ]; then FROM=1; fi
+              [ "$FROM" -lt 1 ] && FROM=1
 
               echo "👉 Lines $START-$END"
               echo "----- BEFORE -----"
               nl -ba "$FILE" | sed -n "${FROM},${TO}p"
 
               echo "----- AFTER ------"
-              sed "${START},${END}c\\
-$REPLACE
-" "$FILE" | nl -ba | sed -n "${FROM},${TO}p"
 
+              TMP=$(mktemp)
+
+              awk -v s="$START" -v e="$END" -v r="$REPLACE" '
+                NR==s {print r}
+                NR<s || NR>e {print}
+              ' "$FILE" > "$TMP"
+
+              nl -ba "$TMP" | sed -n "${FROM},${TO}p"
+
+              rm "$TMP"
               echo "------------------"
             done
 
           else
-            echo "Mode: Text Replace"
-
             FLAG="g"
-            if [ "$CASE" = "false" ]; then FLAG="gi"; fi
+            [ "$CASE" = "false" ] && FLAG="gi"
 
             echo "👉 Matching lines:"
             grep -n "$FIND" "$FILE" || echo "No matches"
@@ -118,9 +122,6 @@ $REPLACE
             echo "----- AFTER ------"
             perl -pe "s/\Q$FIND\E/\Q$REPLACE\E/$FLAG" "$FILE" | grep -n "$REPLACE" || true
           fi
-
-          echo "--------------------------------"
-          echo "✅ Preview only"
 
       # 🚀 APPLY
       - name: Apply changes
@@ -134,12 +135,11 @@ $REPLACE
           CASE="${{ github.event.inputs.case_sensitive }}"
 
           if [ "$MODE_TYPE" = "line" ]; then
-            echo "Applying line replace"
-
             TMP=$(mktemp)
 
             IFS=',' read -ra PARTS <<< "$INPUT"
-            SED_SCRIPT=""
+
+            cp "$FILE" "$TMP"
 
             for part in "${PARTS[@]}"; do
               if [[ "$part" == *"-"* ]]; then
@@ -150,19 +150,19 @@ $REPLACE
                 END=$part
               fi
 
-              SED_SCRIPT="${SED_SCRIPT}${START},${END}c\\
-$REPLACE
-"
+              awk -v s="$START" -v e="$END" -v r="$REPLACE" '
+                NR==s {print r}
+                NR<s || NR>e {print}
+              ' "$TMP" > "$TMP.new"
+
+              mv "$TMP.new" "$TMP"
             done
 
-            sed "$SED_SCRIPT" "$FILE" > "$TMP"
             mv "$TMP" "$FILE"
 
           else
-            echo "Applying text replace"
-
             FLAG="g"
-            if [ "$CASE" = "false" ]; then FLAG="gi"; fi
+            [ "$CASE" = "false" ] && FLAG="gi"
 
             perl -pi -e "s/\Q$FIND\E/\Q$REPLACE\E/$FLAG" "$FILE"
           fi
