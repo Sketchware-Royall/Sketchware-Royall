@@ -5,7 +5,6 @@ import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
@@ -13,6 +12,8 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -117,35 +118,65 @@ public class IntsEditor extends Fragment {
     }
 
     public void showEditIntDialog(int position) {
-        if (position < 0 || position >= intsList.size()) {
-            return;
-        }
+        if (position < 0 || position >= intsList.size()) return;
         showIntDialog(intsList.get(position), position);
     }
 
     private void showIntDialog(IntModel intModel, int position) {
+
         boolean isEditing = intModel != null;
 
         MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(requireActivity());
+
         LinearLayout root = new LinearLayout(requireContext());
         root.setOrientation(LinearLayout.VERTICAL);
 
-        int pad = (int) (16 * requireContext().getResources().getDisplayMetrics().density);
-        root.setPadding(pad, pad, pad, pad);
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        int gap = (int) (12 * getResources().getDisplayMetrics().density);
+        root.setPadding(pad, pad, pad, 0);
 
-        EditText nameInput = new EditText(requireContext());
-        nameInput.setHint("Integer name");
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.setMargins(0, 0, 0, gap);
 
-        EditText valueInput = new EditText(requireContext());
-        valueInput.setHint("Integer value");
-        valueInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_SIGNED);
+        // Name
+        TextInputLayout nameLayout = new TextInputLayout(
+                requireContext(), null,
+                com.google.android.material.R.attr.textInputStyle);
+        nameLayout.setLayoutParams(params);
+        nameLayout.setHint("Integer name");
 
-        EditText headerInput = new EditText(requireContext());
-        headerInput.setHint("Header note");
+        TextInputEditText nameInput = new TextInputEditText(nameLayout.getContext());
+        nameInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        nameInput.setSingleLine(false);
+        nameLayout.addView(nameInput);
 
-        root.addView(nameInput);
-        root.addView(valueInput);
-        root.addView(headerInput);
+        // Value
+        TextInputLayout valueLayout = new TextInputLayout(
+                requireContext(), null,
+                com.google.android.material.R.attr.textInputStyle);
+        valueLayout.setLayoutParams(params);
+        valueLayout.setHint("Integer value");
+
+        TextInputEditText valueInput = new TextInputEditText(valueLayout.getContext());
+        valueInput.setInputType(InputType.TYPE_CLASS_NUMBER);
+        valueInput.setSingleLine(true);
+        valueLayout.addView(valueInput);
+
+        // Header
+        TextInputLayout headerLayout = new TextInputLayout(
+                requireContext(), null,
+                com.google.android.material.R.attr.textInputStyle);
+        headerLayout.setLayoutParams(params);
+        headerLayout.setHint("Header note");
+
+        TextInputEditText headerInput = new TextInputEditText(headerLayout.getContext());
+        headerInput.setInputType(InputType.TYPE_CLASS_TEXT);
+        headerInput.setSingleLine(false);
+        headerLayout.addView(headerInput);
+
+        root.addView(nameLayout);
+        root.addView(valueLayout);
+        root.addView(headerLayout);
 
         if (isEditing) {
             nameInput.setText(intModel.getIntName());
@@ -157,83 +188,74 @@ public class IntsEditor extends Fragment {
         dialog.setView(root);
 
         dialog.setPositiveButton(isEditing ? "Save" : "Create", (d, which) -> {
+
             String name = Objects.requireNonNull(nameInput.getText()).toString().trim();
             String value = Objects.requireNonNull(valueInput.getText()).toString().trim();
             String header = Objects.requireNonNull(headerInput.getText()).toString().trim();
 
             if (name.isEmpty() || value.isEmpty()) {
-                SketchwareUtil.toastError("Please fill in all fields");
+                SketchwareUtil.toastError("Please fill all fields");
                 return;
             }
 
             if (!isInteger(value)) {
-                SketchwareUtil.toastError("Please enter a valid integer");
+                SketchwareUtil.toastError("Invalid integer");
                 return;
             }
 
             if (isEditing) {
+
                 if (!name.equals(intModel.getIntName()) && isDuplicateName(name, position)) {
-                    SketchwareUtil.toastError("\"" + name + "\" is already exist");
+                    SketchwareUtil.toastError("Already exists");
                     return;
                 }
 
                 intModel.setIntName(name);
                 intModel.setIntValue(value);
 
-                if (header.isEmpty()) {
-                    notesMap.remove(position);
-                } else {
-                    notesMap.put(position, header);
-                }
+                if (header.isEmpty()) notesMap.remove(position);
+                else notesMap.put(position, header);
 
                 adapter.notifyItemChanged(position);
+
             } else {
+
                 if (isDuplicateName(name, -1)) {
-                    SketchwareUtil.toastError("\"" + name + "\" is already exist");
+                    SketchwareUtil.toastError("Already exists");
                     return;
                 }
 
-                IntModel model = new IntModel(name, value);
-                intsList.add(model);
-                int notifyPosition = intsList.size() - 1;
+                intsList.add(new IntModel(name, value));
+                int pos = intsList.size() - 1;
 
-                if (!header.isEmpty()) {
-                    notesMap.put(notifyPosition, header);
-                }
+                if (!header.isEmpty()) notesMap.put(pos, header);
 
-                adapter.notifyItemInserted(notifyPosition);
+                adapter.notifyItemInserted(pos);
             }
 
             updateNoContentLayout();
             hasUnsavedChanges = true;
         });
 
+        dialog.setNegativeButton("Cancel", null);
+
         if (isEditing) {
-            dialog.setNeutralButton(Helper.getResString(R.string.common_word_delete), (d, which) ->
-                    new MaterialAlertDialogBuilder(requireContext())
-                            .setTitle("Warning")
-                            .setMessage("Are you sure you want to delete " + intModel.getIntName() + "?")
-                            .setPositiveButton(R.string.common_word_yes, (d2, w) -> {
-                                intsList.remove(position);
-                                notesMap.remove(position);
-                                adapter.notifyItemRemoved(position);
-                                updateNoContentLayout();
-                                hasUnsavedChanges = true;
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show());
+            dialog.setNeutralButton("Delete", (d, w) -> {
+                intsList.remove(position);
+                notesMap.remove(position);
+                adapter.notifyItemRemoved(position);
+                updateNoContentLayout();
+                hasUnsavedChanges = true;
+            });
         }
 
-        dialog.setNegativeButton(getString(R.string.cancel), null);
         dialog.show();
     }
 
-    private boolean isDuplicateName(String name, int ignorePosition) {
+    private boolean isDuplicateName(String name, int ignore) {
         for (int i = 0; i < intsList.size(); i++) {
-            if (i == ignorePosition) continue;
-            if (intsList.get(i).getIntName().equals(name)) {
-                return true;
-            }
+            if (i == ignore) continue;
+            if (intsList.get(i).getIntName().equals(name)) return true;
         }
         return false;
     }
@@ -242,14 +264,15 @@ public class IntsEditor extends Fragment {
         try {
             Integer.parseInt(value);
             return true;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             return false;
         }
     }
 
     public void saveIntsFile() {
         if (hasUnsavedChanges) {
-            XmlUtil.saveXml(filePath, intsEditorManager.convertIntsToXML(intsList, notesMap));
+            XmlUtil.saveXml(filePath,
+                    intsEditorManager.convertIntsToXML(intsList, notesMap));
             hasUnsavedChanges = false;
         }
     }
