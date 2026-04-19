@@ -288,7 +288,7 @@ public class ExtraMenuBean {
 		switch (menuName) {
 			case "varInt":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_number);
-			menus = getDynamicMenus(VARIABLE_TYPE_INT, "Number");
+			menus = getDynamicMenus(VARIABLE_TYPE_NUMBER, "Number");
 			break;
 			
 			case "varBool":
