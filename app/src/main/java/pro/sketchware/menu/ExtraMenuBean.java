@@ -820,8 +820,10 @@ public class ExtraMenuBean {
 	
 	@NonNull
 	private ArrayList<String> getListMenus(int listType) {
-		ArrayList<String> menus = new ArrayList<>(projectDataManager.e(javaName, VARIABLE_TYPE_LIST));
+		// base lists from Sketchware
+		ArrayList<String> menus = new ArrayList<>(projectDataManager.d(javaName, listType));
 		
+		// custom variables (raw)
 		for (String variable : projectDataManager.e(javaName, 6)) {
 			String type = CustomVariableUtil.getVariableType(variable);
 			String name = CustomVariableUtil.getVariableName(variable);
@@ -858,7 +860,7 @@ public class ExtraMenuBean {
 				
 				case LIST_TYPE_MAP:
 				if (
-				type.contains("ArrayList") &&
+				type.startsWith("ArrayList") &&
 				type.contains("HashMap") &&
 				type.contains("String") &&
 				type.contains("Object")
@@ -869,6 +871,7 @@ public class ExtraMenuBean {
 			}
 		}
 		
+		// remove duplicates
 		return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
 	}
 	
