@@ -25,17 +25,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref_name }}
 
       - name: Setup Git
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
 
-      - name: Revert
+      - name: Revert Commit
         run: |
+          set -e
+
           MODE="${{ github.event.inputs.mode }}"
 
           if [ "$MODE" = "last" ]; then
@@ -45,12 +49,16 @@ jobs:
           elif [ "$MODE" = "single" ]; then
             COMMIT="${{ github.event.inputs.commit_id }}"
             if [ -z "$COMMIT" ]; then
-              echo "commit_id is required"
+              echo "❌ commit_id is required"
               exit 1
             fi
             echo "Reverting commit: $COMMIT"
             git revert $COMMIT --no-edit
+          else
+            echo "❌ Invalid mode"
+            exit 1
           fi
 
-      - name: Push
-        run: git push
+      - name: Push Changes
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
