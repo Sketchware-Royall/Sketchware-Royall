@@ -2,51 +2,85 @@ import os
 import subprocess
 import requests
 import re
+import time
 
-def get_git_commit_info():
-    commit_author = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%an']).decode('utf-8')
-    commit_message = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%s']).decode('utf-8')
-    commit_hash = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%H']).decode('utf-8')
-    commit_hash_short = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%h']).decode('utf-8')
-    return commit_author, commit_message, commit_hash, commit_hash_short
+BOT_TOKEN = os.environ['BOT_TOKEN']
+CHAT_ID = os.environ['CHAT_ID']
+TOPIC_ID = os.environ.get('TOPIC_ID')
+APK_PATH = os.environ.get('APK_PATH')  # optional
 
-def escape_markdown_v2(text):
-    escape_chars = r'_~`#+-=|{}.!'
-    return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
 
-def escape_parentheses(text):
-    return re.sub(r'([()])', r'\\\1', text)
+def run(cmd):
+    return subprocess.check_output(cmd).decode().strip()
 
-def main():
-    bot_token = os.environ['BOT_TOKEN']
-    chat_id = os.environ['CHAT_ID']
-    topic_id = os.environ.get('TOPIC_ID')
 
-    commit_author, commit_message, commit_hash, commit_hash_short = get_git_commit_info()
+def get_git_info():
+    return {
+        "author": run(['git', 'log', '-1', '--pretty=format:%an']),
+        "message": run(['git', 'log', '-1', '--pretty=format:%s']),
+        "hash": run(['git', 'log', '-1', '--pretty=format:%H']),
+        "short": run(['git', 'log', '-1', '--pretty=format:%h'])
+    }
 
-    message = (
-        f"A new [commit](https://github.com/Sketchware-Royall/Sketchware-Royall/commit/{commit_hash}) has been merged to the repository by *{commit_author}*.\n\n"
-        f"*What has changed:*\n>{escape_parentheses(commit_message)}\n\n"
-        f"The apk is building and will be send here within ~10 minutes if the build is successful.\n\n#{commit_hash_short}"
-    )
 
-    escaped_message = escape_markdown_v2(message)
+def esc(text):
+    return re.sub(r'([_~`#+\-=|{}.!])', r'\\\1', text)
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+
+def send_message(text):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
-        "chat_id": chat_id,
-        "text": escaped_message,
-        "parse_mode": "markdownv2",
+        "chat_id": CHAT_ID,
+        "text": esc(text),
+        "parse_mode": "MarkdownV2",
         "disable_web_page_preview": True
     }
-    if topic_id:
-        payload["message_thread_id"] = topic_id
+    if TOPIC_ID:
+        payload["message_thread_id"] = TOPIC_ID
 
-    response = requests.post(url, json=payload)
-    if response.status_code != 200:
-        print(f"Failed to send message: {response.status_code} {response.text}")
-    else:
-        print("Message sent successfully.")
+    return requests.post(url, json=payload)
+
+
+def send_apk(path):
+    if not path or not os.path.exists(path):
+        print("APK not found, skipping...")
+        return
+
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendDocument"
+    data = {"chat_id": CHAT_ID}
+    if TOPIC_ID:
+        data["message_thread_id"] = TOPIC_ID
+
+    with open(path, "rb") as f:
+        r = requests.post(url, data=data, files={"document": f})
+
+    print("APK upload:", r.status_code, r.text)
+
+
+def main():
+    git = get_git_info()
+
+    msg = (
+        f"🚀 New commit by *{git['author']}*\n\n"
+        f"[View Commit](https://github.com/Sketchware-Royall/Sketchware-Royall/commit/{git['hash']})\n\n"
+        f"*Changes:*\n> {git['message']}\n\n"
+        f"#{git['short']}"
+    )
+
+    r = send_message(msg)
+
+    if r.status_code != 200:
+        print("Message failed:", r.text)
+        return
+
+    print("Message sent ✅")
+
+    # Optional: wait for build artifact
+    if APK_PATH:
+        print("Waiting for APK...")
+        time.sleep(20)  # adjust if needed
+        send_apk(APK_PATH)
+
 
 if __name__ == "__main__":
     main()
