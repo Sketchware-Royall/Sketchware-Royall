@@ -804,26 +804,12 @@ public class ExtraMenuBean {
 				
 				case "Map":
 				if (
-				type != null &&
-				(
 				(type.contains("HashMap") || type.contains("Map")) &&
 				type.contains("String") &&
 				type.contains("Object") &&
 				!type.contains("ArrayList")
-				)
 				) {
 					menus.add(name);
-				} else {
-					// fallback for parser failures (important)
-					if (
-					variable != null &&
-					variable.contains("HashMap") &&
-					variable.contains("String") &&
-					variable.contains("Object") &&
-					!variable.contains("ArrayList")
-					) {
-						menus.add(name);
-					}
 				}
 				break;
 			}
