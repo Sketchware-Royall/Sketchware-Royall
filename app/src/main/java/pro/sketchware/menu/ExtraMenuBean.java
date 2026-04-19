@@ -288,23 +288,23 @@ public class ExtraMenuBean {
 		switch (menuName) {
 			case "varInt":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_number);
-			menus = getVarMenus(VARIABLE_TYPE_NUMBER);
+			menus = getDynamicMenus(VARIABLE_TYPE_INT, "Number");
 			break;
 			
 			case "varBool":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_boolean);
-			menus = getVarMenus(VARIABLE_TYPE_BOOLEAN);
+			menus = getDynamicMenus(VARIABLE_TYPE_BOOLEAN, "Boolean");
 			break;
 			
 			case "String":
 			case "varStr":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_string);
-			menus = getStringMenus();
+			menus = getDynamicMenus(VARIABLE_TYPE_STRING, "String");
 			break;
 			
 			case "varMap":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_map);
-			menus = getMapMenus();
+			menus = getDynamicMenus(VARIABLE_TYPE_MAP, "Map");
 			break;
 			
 			case "listInt":
@@ -767,31 +767,56 @@ public class ExtraMenuBean {
 	}
 	
 	@NonNull
-	private ArrayList<String> getStringMenus() {
-		ArrayList<String> menus = new ArrayList<>(projectDataManager.e(javaName, VARIABLE_TYPE_STRING));
+	private ArrayList<String> getDynamicMenus(int baseType, String mode) {
+		ArrayList<String> menus = new ArrayList<>(projectDataManager.e(javaName, baseType));
 		
 		for (String variable : projectDataManager.e(javaName, 6)) {
-			String variableType = CustomVariableUtil.getVariableType(variable);
-			String variableName = CustomVariableUtil.getVariableName(variable);
-			if ("String".equals(variableType)) {
-				menus.add(variableName);
-			}
-		}
-		return menus;
-	}
-	
-	@NonNull
-	private ArrayList<String> getMapMenus() {
-		ArrayList<String> menus = new ArrayList<>(projectDataManager.e(javaName, VARIABLE_TYPE_MAP));
-		
-		for (String variable : projectDataManager.e(javaName, 6)) {
-			String variableType = CustomVariableUtil.getVariableType(variable);
-			String variableName = CustomVariableUtil.getVariableName(variable);
+			String type = CustomVariableUtil.getVariableType(variable);
+			String name = CustomVariableUtil.getVariableName(variable);
 			
-			if (variableType != null && variableType.endsWith("Map<String,Object>") && variableName != null) {
-				menus.add(variableName);
+			if (type == null || name == null) continue;
+			
+			switch (mode) {
+				
+				case "String":
+				if ("String".equals(type)) {
+					menus.add(name);
+				}
+				break;
+				
+				case "Number":
+				if (
+				"int".equals(type) ||
+				"double".equals(type) ||
+				"float".equals(type) ||
+				"long".equals(type) ||
+				"short".equals(type)
+				) {
+					menus.add(name);
+				}
+				break;
+				
+				case "Boolean":
+				if ("boolean".equals(type)) {
+					menus.add(name);
+				}
+				break;
+				
+				case "Map":
+				if (
+				type.contains("Map") &&
+				type.contains("String") &&
+				type.contains("Object")
+				) {
+					menus.add(name);
+				}
+				break;
 			}
 		}
+		
+		// remove duplicates safely
+		menus = new ArrayList<>(new java.util.LinkedHashSet<>(menus));
+		
 		return menus;
 	}
 	
