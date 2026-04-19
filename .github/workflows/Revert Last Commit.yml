@@ -18,7 +18,7 @@ on:
 
 permissions:
   contents: write
-  workflows: write
+  pull-requests: write
 
 jobs:
   revert:
@@ -59,6 +59,24 @@ jobs:
             exit 1
           fi
 
-      - name: Push Changes
+      - name: Create Branch
         run: |
-          git push origin HEAD:${{ github.ref_name }}
+          BRANCH="revert-${{ github.run_id }}"
+          git checkout -b $BRANCH
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Push Branch
+        run: |
+          git push origin $BRANCH
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: ${{ env.BRANCH }}
+          base: ${{ github.ref_name }}
+          title: "Revert commit (${{ github.event.inputs.mode }})"
+          body: |
+            This PR was automatically created to revert a commit.
+
+            Mode: ${{ github.event.inputs.mode }}
+            Commit: ${{ github.event.inputs.commit_id || 'HEAD' }}
