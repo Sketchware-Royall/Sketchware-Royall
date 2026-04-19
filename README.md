@@ -3,10 +3,10 @@
 </p>
 
 # Sketchware Pro
-[![GitHub contributors](https://img.shields.io/github/contributors/Sketchware-Pro/Sketchware-Pro)](https://github.com/Sketchware-Pro/Sketchware-Pro/graphs/contributors)
-[![GitHub last commit](https://img.shields.io/github/last-commit/Sketchware-Pro/Sketchware-Pro)](https://github.com/Sketchware-Pro/Sketchware-Pro/commits/)
-[![Total downloads](https://img.shields.io/github/downloads/Sketchware-Pro/Sketchware-Pro/total)](https://github.com/Sketchware-Pro/Sketchware-Pro/releases)
-[![Repository Size](https://img.shields.io/github/repo-size/Sketchware-Pro/Sketchware-Pro)](https://github.com/Sketchware-Pro/Sketchware-Pro)
+[![GitHub contributors](https://img.shields.io/github/contributors/Sketchware-Royall/Sketchware-Royall)](https://github.com/Sketchware-Royall/Sketchware-Royall/graphs/contributors)
+[![GitHub last commit](https://img.shields.io/github/last-commit/Sketchware-Royall/Sketchware-Royall)](https://github.com/Sketchware-Royall/Sketchware-Royall/commits/)
+[![Total downloads](https://img.shields.io/github/downloads/Sketchware-Royall/Sketchware-Royall/total)](https://github.com/Sketchware-Royall/Sketchware-Pro/releases)
+[![Repository Size](https://img.shields.io/github/repo-size/Sketchware-Royall/Sketchware-Royall)](https://github.com/Sketchware-Royall/Sketchware-Royall)
 
 Welcome to Sketchware Pro! Here you'll find the source code of many classes in Sketchware Pro and, most importantly, the place to contribute to Sketchware Pro.
 
