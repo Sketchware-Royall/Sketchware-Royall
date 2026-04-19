@@ -237,6 +237,6 @@ public class CompileLogActivity extends BaseAppCompatActivity {
         if (c != null)
             c.setPrimaryClip(ClipData.newPlainText("error", e));
 
-        SketchwareUtil.toast("Copied");
+        SketchwareUtil.toast("Copied to Clipboard");
     }
 }
