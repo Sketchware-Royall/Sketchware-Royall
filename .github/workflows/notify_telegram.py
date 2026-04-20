@@ -17,10 +17,21 @@ def escape_markdown_v2(text):
 def escape_parentheses(text):
     return re.sub(r'([()])', r'\\\1', text)
 
+# ✅ Branch → Topic mapping (clean version)
+BRANCH_TOPIC_MAP = {
+    "main": 3,
+    "beta": 7,
+    "alpha": 14,
+}
+
+def get_topic_for_branch():
+    branch = os.environ.get("GITHUB_REF_NAME", "")
+    return BRANCH_TOPIC_MAP.get(branch)
+
 def main():
     bot_token = os.environ['BOT_TOKEN']
     chat_id = os.environ['CHAT_ID']
-    topic_id = os.environ.get('TOPIC_ID')
+    topic_id = get_topic_for_branch()
 
     commit_author, commit_message, commit_hash, commit_hash_short = get_git_commit_info()
 
