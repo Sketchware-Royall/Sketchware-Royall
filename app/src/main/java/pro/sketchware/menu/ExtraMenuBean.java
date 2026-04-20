@@ -813,23 +813,23 @@ public class ExtraMenuBean {
 				break;
 			}
 		}
-		// 🔥 ADD COMPONENT SUPPORT
+		
+		// 🔥 COMPONENT + ADDITIONAL VAR SUPPORT
 		
 		ArrayList<ComponentBean> comps = projectDataManager.e(javaName);
 		
 		for (ComponentBean c : comps) {
 			
-			String name = c.componentId;
-			String additional = projectDataManager.b(javaName, name);
+			String compName = c.componentId;
+			String additional = projectDataManager.b(javaName, compName);
 			
 			if (additional == null) continue;
 			
+			// ✅ add component itself (filtered by mode)
 			switch (mode) {
 				
 				case "String":
-				if (additional.contains("String")) {
-					menus.add(name);
-				}
+				if (additional.contains("String")) menus.add(compName);
 				break;
 				
 				case "Number":
@@ -839,41 +839,101 @@ public class ExtraMenuBean {
 				additional.contains("float") ||
 				additional.contains("long") ||
 				additional.contains("short")
-				) {
-					menus.add(name);
-				}
+				) menus.add(compName);
 				break;
 				
 				case "Boolean":
-				if (additional.contains("boolean")) {
-					menus.add(name);
-				}
+				if (additional.contains("boolean")) menus.add(compName);
 				break;
 				
 				case "Map":
-				if (
-				additional.contains("Map") &&
-				additional.contains("String") &&
-				additional.contains("Object")
-				) {
-					menus.add(name);
-				}
+				if (additional.contains("Map") || additional.contains("HashMap")) menus.add(compName);
 				break;
+			}
+			
+			// ✅ extract internal variables
+			ArrayList<String> vars = extractVars(additional);
+			
+			for (String v : vars) {
+				
+				String[] parts = v.split(":");
+				if (parts.length != 2) continue;
+				
+				String type = parts[0];
+				String name = parts[1];
+				
+				switch (mode) {
+					
+					case "String":
+					if ("String".equals(type)) menus.add(name);
+					break;
+					
+					case "Number":
+					if (
+					type.equals("int") ||
+					type.equals("double") ||
+					type.equals("float") ||
+					type.equals("long") ||
+					type.equals("short")
+					) menus.add(name);
+					break;
+					
+					case "Boolean":
+					if ("boolean".equals(type)) menus.add(name);
+					break;
+					
+					case "Map":
+					if (type.contains("Map") || type.contains("HashMap")) menus.add(name);
+					break;
+				}
 			}
 		}
 		
-		
-		
-		
 		return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
-	}
+	}	
 	
 	
-	
-	
-	
-	
-	
+	private ArrayList<String> extractVars(String code) {
+		
+		ArrayList<String> list = new ArrayList<>();
+		
+		if (code == null) return list;
+		
+		String[] lines = code.split("\n");
+		
+		for (String line : lines) {
+			
+			line = line.trim();
+			
+			if (!line.startsWith("private")) continue;
+			
+			line = line.replace(";", "").trim();
+			
+			// normalize spacing
+			line = line.replaceAll("\\s+", " ");
+			
+			String[] parts = line.split(" ");
+			
+			if (parts.length < 3) continue;
+			
+			String type = parts[1];
+			String name = parts[2];
+			
+			// handle generics (HashMap<String, Object>)
+			if (parts.length > 3 && parts[2].contains("<")) {
+				type = parts[1] + " " + parts[2];
+				name = parts[3];
+			}
+			
+			if (name.contains("=")) {
+				name = name.split("=")[0];
+			}
+			
+			list.add(type + ":" + name.trim());
+		}
+		
+		return list;
+	}	
 	
 	
 	
