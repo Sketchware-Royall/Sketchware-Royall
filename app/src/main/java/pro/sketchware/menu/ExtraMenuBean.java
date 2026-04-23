@@ -12,7 +12,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.TextView;
-
+import java.util.LinkedHashSet;
 import androidx.annotation.NonNull;
 
 import com.besome.sketch.beans.AdTestDeviceBean;
@@ -938,13 +938,88 @@ public class ExtraMenuBean {
 	}
 	
 	
+	// =========================
+	// ✅ UNIVERSAL TYPE MATCHER
+	// =========================
+	private static boolean matchesType(String type, String mode) {
+		
+		if (type == null) return false;
+		
+		String base = getBaseType(type);
+		
+		switch (mode) {
+			
+			case "String":
+			return base.endsWith("String") || base.equals("CharSequence");
+			
+			case "Number":
+			return base.equals("int") || base.equals("double") ||
+			base.equals("float") || base.equals("long") ||
+			base.equals("short") ||
+			base.equals("Integer") || base.equals("Double") ||
+			base.equals("Float") || base.equals("Long") ||
+			base.equals("Short") ||
+			base.equals("java.lang.Integer") ||
+			base.equals("java.lang.Double");
+			
+			case "Boolean":
+			return base.equals("boolean") || base.equals("Boolean");
+			
+			case "Map":
+			return isRealMap(type);
+			
+			case "Object":
+			return true;
+		}
+		
+		return false;
+	}
+	
+	
+	// =========================
+	// ✅ BASE TYPE EXTRACTOR
+	// =========================
+	private static String getBaseType(String type) {
+		
+		if (type == null) return "";
+		
+		int index = type.indexOf("<");
+		if (index != -1) {
+			return type.substring(0, index).trim();
+		}
+		
+		return type.trim();
+	}
+	
+	
+	// =========================
+	// ✅ REAL MAP CHECK (NO LIST)
+	// =========================
+	private static boolean isRealMap(String type) {
+		
+		if (type == null) return false;
+		
+		String base = getBaseType(type);
+		
+		return (base.endsWith("HashMap") || base.endsWith("Map"))
+		&& !type.contains("ArrayList")
+		&& !type.contains("List");
+	}
+	
+	
+	// =========================
+	// ✅ FINAL DYNAMIC MENU
+	// =========================
 	@NonNull
 	public ArrayList<String> getDynamicMenus(String mode, String javaName, eC projectDataManager) {
 		
-		ArrayList<String> menus = new ArrayList<>();
+		LinkedHashSet<String> menus = new LinkedHashSet<>();
 		
-		// ✅ 1. BASE VARIABLES (Sketchware)
+		// =========================
+		// ✅ 1. BASE VARIABLES
+		// =========================
 		switch (mode) {
+			
 			case "Number":
 			menus.addAll(projectDataManager.e(javaName, VARIABLE_TYPE_NUMBER));
 			break;
@@ -962,123 +1037,49 @@ public class ExtraMenuBean {
 			break;
 		}
 		
+		
+		// =========================
+		// ✅ PRELOAD (PERFORMANCE)
+		// =========================
+		ArrayList<String> customVars = projectDataManager.e(javaName, 6);
+		ArrayList<ComponentBean> components = projectDataManager.e(javaName);
+		
+		
+		// =========================
 		// ✅ 2. CUSTOM VARIABLES
-		for (String variable : projectDataManager.e(javaName, 6)) {
+		// =========================
+		for (String variable : customVars) {
 			
 			String type = CustomVariableUtil.getVariableType(variable);
 			String name = CustomVariableUtil.getVariableName(variable);
 			
 			if (type == null || name == null) continue;
 			
-			String baseType = getBaseType(type);
-			
-			switch (mode) {
-				
-				case "String":
-				if (baseType.equals("String")) {
-					menus.add(name);
-				}
-				break;
-				
-				case "Number":
-				if (
-				baseType.equals("int") || baseType.equals("double") ||
-				baseType.equals("float") || baseType.equals("long") ||
-				baseType.equals("short") ||
-				baseType.equals("Integer") || baseType.equals("Double") ||
-				baseType.equals("Float") || baseType.equals("Long")
-				) {
-					menus.add(name);
-				}
-				break;
-				
-				case "Boolean":
-				if (baseType.equals("boolean") || baseType.equals("Boolean")) {
-					menus.add(name);
-				}
-				break;
-				
-				case "Map":
-				if (isRealMap(type)) {
-					menus.add(name);
-				}
-				break;
+			if (matchesType(type, mode)) {
+				menus.add(name);
 			}
 		}
 		
-		// ✅ 3. COMPONENT VARIABLES (WORKING LOGIC)
-		for (ComponentBean componentBean : projectDataManager.e(javaName)) {
+		
+		// =========================
+		// ✅ 3. COMPONENT VARIABLES
+		// =========================
+		for (ComponentBean comp : components) {
 			
-			String buildClass = ComponentsHandler.getBuildClassById(componentBean.type);
-			if (buildClass == null || buildClass.isEmpty()) continue;
+			String build = ComponentsHandler.getBuildClassById(comp.type);
 			
-			if (matchesComponentType(buildClass, mode)) {
-				menus.add(componentBean.componentId);
+			if (build == null) continue;
+			
+			if (matchesType(build, mode)) {
+				menus.add(comp.componentId);
 			}
 		}
 		
-		// ✅ REMOVE DUPLICATES
-		return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
+		
+		// =========================
+		// ✅ FINAL RESULT
+		// =========================
+		return new ArrayList<>(menus);
 	}
-	
-	
-	private static String getBaseType(String type) {
-		if (type == null) return "";
-		
-		int index = type.indexOf("<");
-		if (index != -1) {
-			return type.substring(0, index).trim();
-		}
-		
-		return type.trim();
-	}
-	
-	
-	private static boolean isRealMap(String type) {
-		if (type == null) return false;
-		
-		String base = getBaseType(type);
-		
-		// ✅ Only Map / HashMap
-		if (!(base.equals("HashMap") || base.equals("Map"))) {
-			return false;
-		}
-		
-		// ❌ Reject List<Map> or ArrayList<Map>
-		if (type.contains("ArrayList") || type.contains("List")) {
-			return false;
-		}
-		
-		return true;
-	}
-	
-	private static boolean matchesComponentType(String className, String mode) {
-		if (className == null) return false;
-		
-		String base = getBaseType(className);
-		
-		switch (mode) {
-			
-			case "String":
-			return base.equals("String") || base.equals("java.lang.String");
-			
-			case "Number":
-			return base.equals("int") || base.equals("double") ||
-			base.equals("float") || base.equals("long") ||
-			base.equals("Integer");
-			
-			case "Boolean":
-			return base.equals("boolean");
-			
-			case "Map":
-			return base.equals("HashMap") || base.equals("Map");
-			
-			case "Object":
-			return true;
-		}
-		
-		return false;
-	}
-	
 	
 }
