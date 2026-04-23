@@ -794,7 +794,7 @@ public class ExtraMenuBean {
 			String typeName = ComponentsHandler.name(componentBean.type);
 			
 			// ✅ Get variable type from JSON
-			String compType = ComponentHandler.getVarType(typeName);
+			String compType = ComponentsHandler.getVarType(typeName);
 			
 			if (compType == null) continue;
 			
