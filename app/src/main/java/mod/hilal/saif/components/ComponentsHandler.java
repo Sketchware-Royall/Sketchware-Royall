@@ -670,5 +670,4 @@ public class ComponentsHandler {
 
         return new Pair<>(Optional.empty(), components);
     }
-
 }
