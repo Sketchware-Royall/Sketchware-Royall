@@ -768,9 +768,6 @@ public class ExtraMenuBean {
 	
 	
 	
-	
-	
-	
 	@NonNull
 	private ArrayList<String> getDynamicMenus(int baseType, String mode) {
 		
@@ -778,10 +775,113 @@ public class ExtraMenuBean {
 		
 		// ✅ Existing custom variables
 		for (String variable : projectDataManager.e(javaName, 6)) {
+			
 			String type = CustomVariableUtil.getVariableType(variable);
 			String name = CustomVariableUtil.getVariableName(variable);
 			
 			if (type == null || name == null) continue;
+			
+			if (matchesType(type, mode)) {
+				menus.add(name);
+			}
+		}
+		
+		// ✅ 🔥 NEW: Component support
+		for (ComponentBean componentBean : projectDataManager.e(javaName)) {
+			
+			String typeName = componentBean.typeName;
+			
+			// varName (like GlobalData)
+			String varName = ComponentHandler.getVarName(typeName);
+			
+			// 🔥 IMPORTANT: get actual TYPE
+			String compType = ComponentHandler.getVarType(typeName);
+			
+			if (varName == null || compType == null) continue;
+			
+			if (matchesType(compType, mode)) {
+				menus.add(componentBean.componentId); // show instance name
+			}
+		}
+		
+		return menus;
+	}
+	
+	
+	private boolean matchesType(String type, String mode) {
+		
+		switch (mode) {
+			
+			case "String":
+			return "String".equals(type);
+			
+			case "Number":
+			return type.equals("int") ||
+			type.equals("double") ||
+			type.equals("float") ||
+			type.equals("long") ||
+			type.equals("short");
+			
+			case "Boolean":
+			return "boolean".equals(type);
+			
+			case "Map":
+			return (type.contains("HashMap") || type.contains("Map")) &&
+			type.contains("String") &&
+			type.contains("Object") &&
+			!type.contains("ArrayList");
+		}
+		
+		return false;
+	}
+	
+	// 🔥 COMPONENT + ADDITIONAL VAR SUPPORT
+	
+	ArrayList<ComponentBean> comps = projectDataManager.e(javaName);
+	
+	for (ComponentBean c : comps) {
+		
+		String compName = c.componentId;
+		String additional = projectDataManager.b(javaName, compName);
+		
+		if (additional == null) continue;
+		
+		// ✅ add component itself (filtered by mode)
+		switch (mode) {
+			
+			case "String":
+			if (additional.contains("String")) menus.add(compName);
+			break;
+			
+			case "Number":
+			if (
+			additional.contains("int") ||
+			additional.contains("double") ||
+			additional.contains("float") ||
+			additional.contains("long") ||
+			additional.contains("short")
+			) menus.add(compName);
+			break;
+			
+			case "Boolean":
+			if (additional.contains("boolean")) menus.add(compName);
+			break;
+			
+			case "Map":
+			if (additional.contains("Map") || additional.contains("HashMap")) menus.add(compName);
+			break;
+		}
+		
+		// ✅ extract internal variables
+		ArrayList<String> vars = extractVars(additional);
+		
+		for (String v : vars) {
+			
+			String[] parts = v.split(":");
+			if (parts.length != 2) continue;
+			
+			String type = parts[0];
+			String name = parts[1];
 			
 			switch (mode) {
 				
@@ -791,11 +891,11 @@ public class ExtraMenuBean {
 				
 				case "Number":
 				if (
-				"int".equals(type) ||
-				"double".equals(type) ||
-				"float".equals(type) ||
-				"long".equals(type) ||
-				"short".equals(type)
+				type.equals("int") ||
+				type.equals("double") ||
+				type.equals("float") ||
+				type.equals("long") ||
+				type.equals("short")
 				) menus.add(name);
 				break;
 				
@@ -804,261 +904,182 @@ public class ExtraMenuBean {
 				break;
 				
 				case "Map":
-				if (
-				(type.contains("HashMap") || type.contains("Map")) &&
-				type.contains("String") &&
-				type.contains("Object") &&
-				!type.contains("ArrayList")
-				) menus.add(name);
+				if (type.contains("Map") || type.contains("HashMap")) menus.add(name);
 				break;
 			}
 		}
-		
-		// 🔥 COMPONENT + ADDITIONAL VAR SUPPORT
-		
-		ArrayList<ComponentBean> comps = projectDataManager.e(javaName);
-		
-		for (ComponentBean c : comps) {
-			
-			String compName = c.componentId;
-			String additional = projectDataManager.b(javaName, compName);
-			
-			if (additional == null) continue;
-			
-			// ✅ add component itself (filtered by mode)
-			switch (mode) {
-				
-				case "String":
-				if (additional.contains("String")) menus.add(compName);
-				break;
-				
-				case "Number":
-				if (
-				additional.contains("int") ||
-				additional.contains("double") ||
-				additional.contains("float") ||
-				additional.contains("long") ||
-				additional.contains("short")
-				) menus.add(compName);
-				break;
-				
-				case "Boolean":
-				if (additional.contains("boolean")) menus.add(compName);
-				break;
-				
-				case "Map":
-				if (additional.contains("Map") || additional.contains("HashMap")) menus.add(compName);
-				break;
-			}
-			
-			// ✅ extract internal variables
-			ArrayList<String> vars = extractVars(additional);
-			
-			for (String v : vars) {
-				
-				String[] parts = v.split(":");
-				if (parts.length != 2) continue;
-				
-				String type = parts[0];
-				String name = parts[1];
-				
-				switch (mode) {
-					
-					case "String":
-					if ("String".equals(type)) menus.add(name);
-					break;
-					
-					case "Number":
-					if (
-					type.equals("int") ||
-					type.equals("double") ||
-					type.equals("float") ||
-					type.equals("long") ||
-					type.equals("short")
-					) menus.add(name);
-					break;
-					
-					case "Boolean":
-					if ("boolean".equals(type)) menus.add(name);
-					break;
-					
-					case "Map":
-					if (type.contains("Map") || type.contains("HashMap")) menus.add(name);
-					break;
-				}
-			}
-		}
-		
-		return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
-	}	
-	
-	
-	private ArrayList<String> extractVars(String code) {
-		
-		ArrayList<String> list = new ArrayList<>();
-		
-		if (code == null) return list;
-		
-		String[] lines = code.split("\n");
-		
-		for (String line : lines) {
-			
-			line = line.trim();
-			
-			if (!line.startsWith("private")) continue;
-			
-			line = line.replace(";", "").trim();
-			
-			// normalize spacing
-			line = line.replaceAll("\\s+", " ");
-			
-			String[] parts = line.split(" ");
-			
-			if (parts.length < 3) continue;
-			
-			String type = parts[1];
-			String name = parts[2];
-			
-			// handle generics (HashMap<String, Object>)
-			if (parts.length > 3 && parts[2].contains("<")) {
-				type = parts[1] + " " + parts[2];
-				name = parts[3];
-			}
-			
-			if (name.contains("=")) {
-				name = name.split("=")[0];
-			}
-			
-			list.add(type + ":" + name.trim());
-		}
-		
-		return list;
-	}	
-	
-	
-	
-	@NonNull
-	private ArrayList<String> getListMenus(int listType) {
-		// base lists from Sketchware
-		ArrayList<String> menus = new ArrayList<>(projectDataManager.d(javaName, listType));
-		
-		// custom variables (raw)
-		for (String variable : projectDataManager.e(javaName, 6)) {
-			String type = CustomVariableUtil.getVariableType(variable);
-			String name = CustomVariableUtil.getVariableName(variable);
-			
-			if (type == null || name == null) continue;
-			
-			switch (listType) {
-				
-				case LIST_TYPE_STRING:
-				if (
-				type.startsWith("ArrayList") &&
-				type.contains("String") &&
-				!type.contains("HashMap")
-				) {
-					menus.add(name);
-				}
-				break;
-				
-				case LIST_TYPE_NUMBER:
-				if (
-				type.startsWith("ArrayList") &&
-				(
-				type.contains("Double") ||
-				type.contains("Integer") ||
-				type.contains("Float") ||
-				type.contains("Long") ||
-				type.contains("Short")
-				) &&
-				!type.contains("HashMap")
-				) {
-					menus.add(name);
-				}
-				break;
-				
-				case LIST_TYPE_MAP:
-				if (
-				type.startsWith("ArrayList") &&
-				type.contains("HashMap") &&
-				type.contains("String") &&
-				type.contains("Object")
-				) {
-					menus.add(name);
-				}
-				break;
-			}
-		}
-		
-		// remove duplicates
-		return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
 	}
 	
-	private ArrayList<String> getComponentMenus(int type) {
-		return projectDataManager.b(javaName, type);
+	return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
+}	
+
+
+private ArrayList<String> extractVars(String code) {
+	
+	ArrayList<String> list = new ArrayList<>();
+	
+	if (code == null) return list;
+	
+	String[] lines = code.split("\n");
+	
+	for (String line : lines) {
+		
+		line = line.trim();
+		
+		if (!line.startsWith("private")) continue;
+		
+		line = line.replace(";", "").trim();
+		
+		// normalize spacing
+		line = line.replaceAll("\\s+", " ");
+		
+		String[] parts = line.split(" ");
+		
+		if (parts.length < 3) continue;
+		
+		String type = parts[1];
+		String name = parts[2];
+		
+		// handle generics (HashMap<String, Object>)
+		if (parts.length > 3 && parts[2].contains("<")) {
+			type = parts[1] + " " + parts[2];
+			name = parts[3];
+		}
+		
+		if (name.contains("=")) {
+			name = name.split("=")[0];
+		}
+		
+		list.add(type + ":" + name.trim());
 	}
 	
-	private void asdDialog(Ss ss, String message) {
-		MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(logicEditor);
-		dialog.setTitle(R.string.logic_editor_title_enter_string_value);
+	return list;
+}	
+
+
+
+@NonNull
+private ArrayList<String> getListMenus(int listType) {
+	// base lists from Sketchware
+	ArrayList<String> menus = new ArrayList<>(projectDataManager.d(javaName, listType));
+	
+	// custom variables (raw)
+	for (String variable : projectDataManager.e(javaName, 6)) {
+		String type = CustomVariableUtil.getVariableType(variable);
+		String name = CustomVariableUtil.getVariableName(variable);
 		
-		if (!isEmpty(message)) dialog.setMessage(message);
+		if (type == null || name == null) continue;
 		
-		View root = wB.a(logicEditor, R.layout.property_popup_input_text);
-		EditText edittext = root.findViewById(R.id.ed_input);
-		edittext.setImeOptions(EditorInfo.IME_ACTION_NONE);
-		
-		if (ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_USE_ASD_HIGHLIGHTER)) {
-			new SimpleHighlighter(edittext);
-		}
-		edittext.setText(ss.getArgValue().toString());
-		dialog.setView(root);
-		
-		dialog.setPositiveButton(R.string.common_word_save, (v, which) -> {
-			String content = Helper.getText(edittext);
-			if (!content.isEmpty() && content.charAt(0) == '@') {
-				content = " " + content;
+		switch (listType) {
+			
+			case LIST_TYPE_STRING:
+			if (
+			type.startsWith("ArrayList") &&
+			type.contains("String") &&
+			!type.contains("HashMap")
+			) {
+				menus.add(name);
 			}
-			logicEditor.a(ss, content);
-			v.dismiss();
-		});
-		dialog.setNegativeButton(R.string.common_word_cancel, null);
-		dialog.setNeutralButton("Code Editor", (v, which) -> {
-			AsdDialog asdDialog = new AsdDialog(logicEditor);
-			asdDialog.setContent(Helper.getText(edittext));
-			asdDialog.show();
-			asdDialog.setOnSaveClickListener(logicEditor, false, ss, asdDialog);
-			asdDialog.setOnCancelClickListener(asdDialog);
-			v.dismiss();
-		});
-		dialog.show();
+			break;
+			
+			case LIST_TYPE_NUMBER:
+			if (
+			type.startsWith("ArrayList") &&
+			(
+			type.contains("Double") ||
+			type.contains("Integer") ||
+			type.contains("Float") ||
+			type.contains("Long") ||
+			type.contains("Short")
+			) &&
+			!type.contains("HashMap")
+			) {
+				menus.add(name);
+			}
+			break;
+			
+			case LIST_TYPE_MAP:
+			if (
+			type.startsWith("ArrayList") &&
+			type.contains("HashMap") &&
+			type.contains("String") &&
+			type.contains("Object")
+			) {
+				menus.add(name);
+			}
+			break;
+		}
 	}
 	
-	private void pathSelectorMenu(Ss ss) {
-		String menuName = ss.getMenuName();
-		ArrayList<String> markedPath = new ArrayList<>();
-		
-		mOptions.setSelectionMode(SelectionMode.BOTH);
-		String path = null;
-		if (menuName.equals("Assets")) {
-			mOptions.setTitle("Select an Asset");
-			path = String.format(ASSETS_PATH, sc_id);
-			markedPath.add(0, path + ss.getArgValue().toString());
-		} else if (menuName.equals("NativeLib")) {
-			mOptions.setTitle("Select a Native library");
-			path = String.format(NATIVE_PATH, sc_id);
-			markedPath.add(0, path + ss.getArgValue().toString());
-		}
-		String[] strArr = path.split("/");
-		String splitter = strArr[strArr.length - 1];
-		mOptions.setInitialDirectory(path);
-		FilePickerCallback callback = new FilePickerCallback() {
-			@Override
-			public void onFileSelected(File file) {
-				logicEditor.a(ss, file.getAbsolutePath().split(splitter)[1]);
-			}
-		};
-		FilePickerDialogFragment fpd = new FilePickerDialogFragment(mOptions, callback);
-		fpd.show(logicEditor.getSupportFragmentManager(), "filePicker");
+	// remove duplicates
+	return new ArrayList<>(new java.util.LinkedHashSet<>(menus));
+}
+
+private ArrayList<String> getComponentMenus(int type) {
+	return projectDataManager.b(javaName, type);
+}
+
+private void asdDialog(Ss ss, String message) {
+	MaterialAlertDialogBuilder dialog = new MaterialAlertDialogBuilder(logicEditor);
+	dialog.setTitle(R.string.logic_editor_title_enter_string_value);
+	
+	if (!isEmpty(message)) dialog.setMessage(message);
+	
+	View root = wB.a(logicEditor, R.layout.property_popup_input_text);
+	EditText edittext = root.findViewById(R.id.ed_input);
+	edittext.setImeOptions(EditorInfo.IME_ACTION_NONE);
+	
+	if (ConfigActivity.isSettingEnabled(ConfigActivity.SETTING_USE_ASD_HIGHLIGHTER)) {
+		new SimpleHighlighter(edittext);
 	}
+	edittext.setText(ss.getArgValue().toString());
+	dialog.setView(root);
+	
+	dialog.setPositiveButton(R.string.common_word_save, (v, which) -> {
+		String content = Helper.getText(edittext);
+		if (!content.isEmpty() && content.charAt(0) == '@') {
+			content = " " + content;
+		}
+		logicEditor.a(ss, content);
+		v.dismiss();
+	});
+	dialog.setNegativeButton(R.string.common_word_cancel, null);
+	dialog.setNeutralButton("Code Editor", (v, which) -> {
+		AsdDialog asdDialog = new AsdDialog(logicEditor);
+		asdDialog.setContent(Helper.getText(edittext));
+		asdDialog.show();
+		asdDialog.setOnSaveClickListener(logicEditor, false, ss, asdDialog);
+		asdDialog.setOnCancelClickListener(asdDialog);
+		v.dismiss();
+	});
+	dialog.show();
+}
+
+private void pathSelectorMenu(Ss ss) {
+	String menuName = ss.getMenuName();
+	ArrayList<String> markedPath = new ArrayList<>();
+	
+	mOptions.setSelectionMode(SelectionMode.BOTH);
+	String path = null;
+	if (menuName.equals("Assets")) {
+		mOptions.setTitle("Select an Asset");
+		path = String.format(ASSETS_PATH, sc_id);
+		markedPath.add(0, path + ss.getArgValue().toString());
+	} else if (menuName.equals("NativeLib")) {
+		mOptions.setTitle("Select a Native library");
+		path = String.format(NATIVE_PATH, sc_id);
+		markedPath.add(0, path + ss.getArgValue().toString());
+	}
+	String[] strArr = path.split("/");
+	String splitter = strArr[strArr.length - 1];
+	mOptions.setInitialDirectory(path);
+	FilePickerCallback callback = new FilePickerCallback() {
+		@Override
+		public void onFileSelected(File file) {
+			logicEditor.a(ss, file.getAbsolutePath().split(splitter)[1]);
+		}
+	};
+	FilePickerDialogFragment fpd = new FilePickerDialogFragment(mOptions, callback);
+	fpd.show(logicEditor.getSupportFragmentManager(), "filePicker");
+}
 }
