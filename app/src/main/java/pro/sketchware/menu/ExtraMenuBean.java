@@ -289,23 +289,23 @@ public class ExtraMenuBean {
 		switch (menuName) {
 			case "varInt":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_number);
-			menus = getDynamicMenus(VARIABLE_TYPE_NUMBER, "Number");
+			menus = getDynamicMenus("Number", javaName, projectDataManager);
 			break;
 			
 			case "varBool":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_boolean);
-			menus = getDynamicMenus(VARIABLE_TYPE_BOOLEAN, "Boolean");
+			menus = getDynamicMenus("Boolean", javaName, projectDataManager);
 			break;
 			
 			case "String":
 			case "varStr":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_string);
-			menus = getDynamicMenus(VARIABLE_TYPE_STRING, "String");
+			menus = getDynamicMenus("String", javaName, projectDataManager);
 			break;
 			
 			case "varMap":
 			title = logicEditor.getString(R.string.logic_editor_title_select_variable_map);
-			menus = getDynamicMenus(VARIABLE_TYPE_MAP, "Map");
+			menus = getDynamicMenus("Map", javaName, projectDataManager);
 			break;
 			
 			case "listInt":
@@ -768,88 +768,93 @@ public class ExtraMenuBean {
 	}
 	
 	
-	
 	public static ArrayList<String> getDynamicMenus(String mode, String javaName, eC projectDataManager) {
 		ArrayList<String> menus = new ArrayList<>();
 		
-		// ✅ 1. NORMAL VARIABLES
-		for (Pair<Integer, String> var : projectDataManager.i(javaName)) {
-			int varType = var.first;
+		// 🔹 NORMAL VARIABLES (from eC.java)
+		for (Pair<String, String> var : projectDataManager.i(javaName)) {
+			String varType = var.first;
 			String varName = var.second;
 			
-			if (matchesVarType(varType, mode)) {
+			if (matchesVarTypeString(varType, mode)) {
 				menus.add(varName);
 			}
 		}
 		
-		// ✅ 2. COMPONENT VARIABLES (runtime)
+		// 🔹 COMPONENT VARIABLES (runtime)
 		for (ComponentBean componentBean : projectDataManager.e(javaName)) {
 			
 			String buildClass = ComponentsHandler.getBuildClassById(componentBean.type);
 			if (buildClass == null || buildClass.isEmpty()) continue;
 			
-			int compType = detectComponentType(buildClass);
-			
-			if (matchesVarType(compType, mode)) {
-				menus.add(componentBean.componentId); // 🔥 IMPORTANT
+			if (matchesComponentType(buildClass, mode)) {
+				menus.add(componentBean.componentId);
 			}
 		}
 		
 		return menus;
 	}	
 	
-	private static boolean matchesVarType(int type, String mode) {
+	
+	// 🔥 COMPONENT + ADDITIONAL VAR SUPPORT
+	private static boolean matchesVarTypeString(String type, String mode) {
+		if (type == null) return false;
+		
 		switch (mode) {
-			case "String": return type == 0;
-			case "Number": return type == 1;
-			case "Boolean": return type == 2;
-			case "List": return type == 3;
-			case "Map": return type == 4;
-			case "Object": return type == 5;
+			case "String":
+			return type.equals("String");
+			
+			case "Number":
+			return type.equals("int") || type.equals("double") || type.equals("float") || type.equals("long");
+			
+			case "Boolean":
+			return type.equals("boolean");
+			
+			case "List":
+			return type.contains("ArrayList");
+			
+			case "Map":
+			return type.contains("HashMap");
+			
+			case "Object":
+			return true;
 		}
 		return false;
 	}
-	// 🔥 COMPONENT + ADDITIONAL VAR SUPPORT
 	
-	private static int detectComponentType(String className) {
-		
-		if (className == null) return 5;
+	
+	
+	private static boolean matchesComponentType(String className, String mode) {
+		if (className == null) return false;
 		
 		className = className.toLowerCase();
 		
-		// String
-		if (className.contains("string")) {
-			return 0;
+		switch (mode) {
+			
+			case "String":
+			return className.equals("string") || className.equals("java.lang.string");
+			
+			case "Number":
+			return className.equals("int") ||
+			className.equals("double") ||
+			className.equals("float") ||
+			className.equals("long") ||
+			className.equals("integer");
+			
+			case "Boolean":
+			return className.equals("boolean");
+			
+			case "List":
+			return className.contains("arraylist") || className.endsWith("list");
+			
+			case "Map":
+			return className.contains("hashmap") || className.endsWith("map");
+			
+			case "Object":
+			return true;
 		}
 		
-		// Number
-		if (className.contains("int") ||
-		className.contains("double") ||
-		className.contains("float") ||
-		className.contains("long") ||
-		className.contains("number")) {
-			return 1;
-		}
-		
-		// Boolean
-		if (className.contains("boolean")) {
-			return 2;
-		}
-		
-		// List
-		if (className.contains("arraylist") ||
-		className.contains("list")) {
-			return 3;
-		}
-		
-		// Map
-		if (className.contains("hashmap") ||
-		className.contains("map")) {
-			return 4;
-		}
-		
-		// Default → Object
-		return 5;
+		return false;
 	}
 	
 	
