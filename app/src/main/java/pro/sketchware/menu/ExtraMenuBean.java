@@ -51,6 +51,7 @@ import pro.sketchware.utility.CustomVariableUtil;
 import pro.sketchware.utility.FilePathUtil;
 import pro.sketchware.utility.FileResConfig;
 import pro.sketchware.utility.FileUtil;
+import mod.hilal.saif.components.ComponentsHandler;
 
 public class ExtraMenuBean {
 	
@@ -789,17 +790,18 @@ public class ExtraMenuBean {
 		// ✅ Components (only added in activity)
 		for (ComponentBean componentBean : projectDataManager.e(javaName)) {
 			
-			String typeName = componentBean.name; // ✅ CORRECT FIELD
+			// ✅ Convert int → typeName
+			String typeName = ComponentsHandler.name(componentBean.type);
 			
+			// ✅ Get variable type from JSON
 			String compType = ComponentHandler.getVarType(typeName);
 			
 			if (compType == null) continue;
 			
 			if (matchesType(compType, mode)) {
-				menus.add(componentBean.componentId); // show instance
+				menus.add(componentBean.componentId);
 			}
 		}
-		
 		return menus;
 	}
 	
