@@ -57,15 +57,19 @@ public class Ox {
         aci = new AppCompatInjection(jq, projectFileBean);
     }
 
-    public static String formatColor(int color) {
-        int alpha = (color >> 24) & 0xff;
-
-        if (alpha != 0xff) {
-            return String.format("#%08X", color);
-        } else {
-            return String.format("#%06X", 0xFFFFFF & color);
-        }
+public static String formatColor(int color) {
+    if (color <= 0xFFFFFF) {
+        color |= 0xFF000000;
     }
+
+    int alpha = (color >>> 24);
+
+    if (alpha != 255) {
+        return String.format("#%08X", color);
+    } else {
+        return String.format("#%06X", color & 0xFFFFFF);
+    }
+}
 
     /**
      * @return The parameter String escaped properly for XML strings
