@@ -282,13 +282,12 @@ public class Jx {
                 }
             }
         }
-
+        
+        fields.add(0, "private Activity activity;");
+        
         if (!fields.isEmpty()) {
             if (activityHasFields) sb.append(EOL);
             activityHasFields = true;
-            
-            sb.append(EOL);
-            sb.append("private Activity activity;");
             
             for (String field : fields) {
                 if (!field.isEmpty()) {
