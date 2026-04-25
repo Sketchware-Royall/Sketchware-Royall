@@ -282,11 +282,13 @@ public class Jx {
                 }
             }
         }
-
+        
+        fields.add(0, "private Activity activity;");
+        
         if (!fields.isEmpty()) {
             if (activityHasFields) sb.append(EOL);
             activityHasFields = true;
-
+            
             for (String field : fields) {
                 if (!field.isEmpty()) {
                     sb.append(EOL);
@@ -440,11 +442,15 @@ public class Jx {
         } else {
             sb.append("private void initialize(Bundle _savedInstanceState) {");
         }
+        
+        sb.append(EOL);
+        sb.append(getActivityAssign());
+        
         if (!TextUtils.isEmpty(initializeLogic())) {
             sb.append(EOL);
             sb.append(initializeLogic());
         }
-
+         
         for (String value : initializeMethodCode) {
             if (!value.isEmpty()) {
                 sb.append(EOL);
@@ -1160,4 +1166,15 @@ public class Jx {
             addImport(value);
         }
     }
+    
+   private String getActivityAssign() {
+    if (projectFileBean.fileName.contains("_fragment")
+        || projectFileBean.fileName.contains("_dialog_fragment")
+        || projectFileBean.fileName.contains("_bottomdialog_fragment")) {
+
+        return "activity = getActivity();";
+    }
+    return "activity = this;";
+}
+    
 }
