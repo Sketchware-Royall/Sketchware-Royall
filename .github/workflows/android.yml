@@ -86,6 +86,16 @@ jobs:
           name: apk-release-${{ steps.set_sha.outputs.short_sha }}
           path: app/build/outputs/apk/release/app-release-${{ steps.set_sha.outputs.short_sha }}.apk
 
+- name: Send APKs to Telegram
+  env:
+    BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+    CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+    TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+    APK_PATH: ${{ env.APK_PATH }}
+    GITHUB_RUN_NUMBER: ${{ github.run_number }}
+  run: |
+    python ./.github/workflows/deploy_artifacts.py
+
   updateAppData:
     name: Update App Data
     runs-on: ubuntu-latest
