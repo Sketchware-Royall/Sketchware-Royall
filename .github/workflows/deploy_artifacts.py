@@ -1,60 +1,57 @@
 import os
+import asyncio
 import subprocess
-import requests
+from telethon import TelegramClient
 
-def get_git_commit_info():
-    commit_author = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%an']).decode()
-    commit_message = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%s']).decode()
-    commit_hash_short = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%h']).decode()
-    return commit_author, commit_message, commit_hash_short
+def get_git_info():
+    author = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%an']).decode()
+    message = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%s']).decode()
+    short_hash = subprocess.check_output(['git', 'log', '-1', '--pretty=format:%h']).decode()
+    return author, message, short_hash
 
+api_id = int(os.getenv("API_ID"))
+api_hash = os.getenv("API_HASH")
 bot_token = os.getenv("BOT_TOKEN")
-chat_id = os.getenv("CHAT_ID")
+chat_id = int(os.getenv("CHAT_ID"))
 topic_id = os.getenv("TOPIC_ID")
 apk_path = os.getenv("APK_PATH")
+run_number = os.getenv("GITHUB_RUN_NUMBER")
 
-commit_author, commit_message, commit_hash_short = get_git_commit_info()
+author, message, short_hash = get_git_info()
 
-def human_readable(size):
-    for unit in ['B','KB','MB','GB']:
-        if size < 1024:
-            return f"{size:.2f} {unit}"
-        size /= 1024
+client = TelegramClient("bot_session", api_id, api_hash)
 
-def send_apk():
+def progress(current, total):
+    percent = current * 100 / total
+    print(f"{percent:.1f}% uploaded", end="\r")
+
+async def main():
     if not os.path.exists(apk_path):
-        print("APK not found:", apk_path)
+        print("❌ APK not found:", apk_path)
         return
 
-    url = f"https://api.telegram.org/bot{bot_token}/sendDocument"
+    await client.start(bot_token=bot_token)
 
     caption = (
-        f"*Commit by:* {commit_author}\n"
-        f"*Message:* {commit_message}\n"
-        f"*Build:* #{os.getenv('GITHUB_RUN_NUMBER')}\n"
-        f"*Commit:* `{commit_hash_short}`\n"
-        f"*Version:* Android >= 8"
+        f"**Commit by:** {author}\n"
+        f"**Message:** {message}\n"
+        f"**Build:** #{run_number}\n"
+        f"**Commit:** `{short_hash}`\n"
+        f"**Version:** Android >= 8"
     )
 
-    size = human_readable(os.path.getsize(apk_path))
-    print(f"Sending APK ({size})...")
+    print("📤 Sending:", apk_path)
 
-    with open(apk_path, "rb") as f:
-        data = {
-            "chat_id": chat_id,
-            "caption": caption,
-            "parse_mode": "Markdown"
-        }
+    await client.send_file(
+        entity=chat_id,
+        file=apk_path,
+        caption=caption,
+        parse_mode="markdown",
+        progress_callback=progress,
+        reply_to=int(topic_id) if topic_id else None
+    )
 
-        if topic_id:
-            data["message_thread_id"] = int(topic_id)
+    print("\n✅ Sent successfully")
+    await client.disconnect()
 
-        response = requests.post(url, data=data, files={"document": f})
-
-    if response.status_code == 200:
-        print("✅ Sent successfully")
-    else:
-        print("❌ Failed:", response.text)
-
-if __name__ == "__main__":
-    send_apk()
+asyncio.run(main())
