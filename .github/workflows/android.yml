@@ -61,6 +61,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # ✅ FIX: copy mock firebase config
+      - name: Copy google-services.json
+        run: |
+          cp .github/Google-Mock-Services.json app/google-services.json
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
