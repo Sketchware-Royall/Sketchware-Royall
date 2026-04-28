@@ -16,29 +16,31 @@ on:
   workflow_dispatch:
 
 jobs:
+
   notifyTelegram:
     name: Notify Telegram
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Python 3
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
-      - name: Install Dependencies
-        run: |
-          pip install requests
+      - name: Install requests
+        run: pip install requests
 
-      - name: Send a message to Telegram
+      - name: Send message to Telegram
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.TGGOUPID }}
-          TOPIC_ID: ${{ secrets.TGNIGHTLYTOPICID }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TOPIC_ID: 3
         run: |
           python ./.github/workflows/notify_telegram.py
         continue-on-error: true
+
 
   build:
     name: Build APK
@@ -65,25 +67,23 @@ jobs:
           SW_KEY_PASS: ${{ secrets.SW_KEY_PASS }}
         run: gradle assembleRelease
 
-      # 🔥 Create final APK name using run number
       - name: Set APK Name
         id: set_name
         run: |
           APK_NAME=Sketchware-Royall-#${{ github.run_number }}.apk
           echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
 
-      # 🔥 Rename APK directly to final name
       - name: Rename APK
         run: |
           mv app/build/outputs/apk/release/app-release.apk \
              app/build/outputs/apk/release/${{ steps.set_name.outputs.apk_name }}
 
-      # 🔥 Upload with SAME name (important)
       - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.set_name.outputs.apk_name }}
           path: app/build/outputs/apk/release/${{ steps.set_name.outputs.apk_name }}
+
 
   send:
     name: Send to Telegram
@@ -93,14 +93,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # 🔥 Download artifact using SAME name
       - name: Download APK
         uses: actions/download-artifact@v8
         with:
           name: ${{ needs.build.outputs.apk_name }}
           path: ./apk
 
-      # 🔥 Set APK path
       - name: Set APK Path
         run: |
           echo "APK_PATH=./apk/${{ needs.build.outputs.apk_name }}" >> $GITHUB_ENV
@@ -117,42 +115,41 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          TOPIC_ID: 3
           APK_PATH: ${{ env.APK_PATH }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
           python ./.github/workflows/deploy_artifacts.py
 
+
   updateAppData:
     name: Update App Data
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - name: Set up Python 3
+      - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.x'
 
-      - name: Install Dependencies
-        run: |
-          pip install requests
+      - name: Install requests
+        run: pip install requests
 
-      - name: Run Update App Script
+      - name: Run Update Script
         env:
           GH_ABOUT_APP_WORKFLOW_TOKEN: ${{ secrets.GH_ABOUT_APP_WORKFLOW_TOKEN }}
         run: python .github/workflows/update_app_data.py
 
       - name: Commit and Push Changes
-        env:
-          GH_ABOUT_APP_WORKFLOW_TOKEN: ${{ secrets.GH_ABOUT_APP_WORKFLOW_TOKEN }}
         run: |
           git checkout host
           git config --global user.name "Sketchware Pro Actions"
           git config --global user.email "hello@sketchware.bro"
           git add about.json
-          git commit -m "feat: Update app about screen data"
+          git commit -m "feat: Update app about screen data" || echo "No changes"
           git push
         continue-on-error: true
