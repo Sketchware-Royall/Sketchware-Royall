@@ -24,6 +24,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set Topic ID
+        run: |
+          if [ "${{ github.repository }}" = "AraafRoyall/sketchware-Royall" ]; then
+            echo "TOPIC_ID=14" >> $GITHUB_ENV
+          else
+            echo "TOPIC_ID=3" >> $GITHUB_ENV
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -36,7 +44,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TOPIC_ID: 3
+          TOPIC_ID: ${{ env.TOPIC_ID }}
         run: |
           python ./.github/workflows/notify_telegram.py
         continue-on-error: true
@@ -93,6 +101,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set Topic ID
+        run: |
+          if [ "${{ github.repository }}" = "AraafRoyall/sketchware-Royall" ]; then
+            echo "TOPIC_ID=14" >> $GITHUB_ENV
+          else
+            echo "TOPIC_ID=3" >> $GITHUB_ENV
+          fi
+
       - name: Download APK
         uses: actions/download-artifact@v8
         with:
@@ -115,7 +131,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          TOPIC_ID: 3
+          TOPIC_ID: ${{ env.TOPIC_ID }}
           APK_PATH: ${{ env.APK_PATH }}
           GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: |
