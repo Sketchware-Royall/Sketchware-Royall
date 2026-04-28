@@ -27,7 +27,7 @@ jobs:
 
       - name: Set Topic ID
         run: |
-          if [ "${{ github.repository }}" = "AraafRoyall/sketchware-Royall" ]; then
+          if [ "${{ github.repository }}" = "Sketchware-Royall/Sketchware-Royall" ]; then
             echo "TOPIC_ID=14" >> $GITHUB_ENV
           else
             echo "TOPIC_ID=3" >> $GITHUB_ENV
