@@ -41,10 +41,12 @@ jobs:
         continue-on-error: true
 
   build:
-    name: Build APKs
+    name: Build APK
     runs-on: ubuntu-latest
+
     outputs:
-      short_sha: ${{ steps.set_sha.outputs.short_sha }}
+      apk_name: ${{ steps.set_name.outputs.apk_name }}
+
     steps:
       - uses: actions/checkout@v6
 
@@ -54,47 +56,72 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - name: Set environmental variables
-        shell: bash
-        env:
-          JSON_CONTENT: ${{ secrets.GOOGLE_SERVICES_JSON }}
-        if: ${{ env.JSON_CONTENT != '' }}
-        run: |
-          printf 'GOOGLE_SERVICES_JSON<<EOF\n%s\nEOF\n' "$JSON_CONTENT" >> $GITHUB_ENV
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build Release APK
         env:
           SKETCHUB_API_KEY: ${{ secrets.SKETCHUB_API_KEY }}
-          SW_KEY_PASS: ${{secrets.SW_KEY_PASS}}
+          SW_KEY_PASS: ${{ secrets.SW_KEY_PASS }}
         run: gradle assembleRelease
 
-      - name: Set short SHA
-        id: set_sha
-        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+      # 🔥 Create final APK name using run number
+      - name: Set APK Name
+        id: set_name
+        run: |
+          APK_NAME=Sketchware-Royall-#${{ github.run_number }}.apk
+          echo "apk_name=$APK_NAME" >> $GITHUB_OUTPUT
 
-      - name: Rename APK with commit hash
+      # 🔥 Rename APK directly to final name
+      - name: Rename APK
         run: |
           mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/app-release-${{ steps.set_sha.outputs.short_sha }}.apk
+             app/build/outputs/apk/release/${{ steps.set_name.outputs.apk_name }}
 
-      - name: Upload Release APK
+      # 🔥 Upload with SAME name (important)
+      - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
-          name: apk-release-${{ steps.set_sha.outputs.short_sha }}
-          path: app/build/outputs/apk/release/app-release-${{ steps.set_sha.outputs.short_sha }}.apk
+          name: ${{ steps.set_name.outputs.apk_name }}
+          path: app/build/outputs/apk/release/${{ steps.set_name.outputs.apk_name }}
 
-- name: Send APKs to Telegram
-  env:
-    BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-    CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-    TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
-    APK_PATH: ${{ env.APK_PATH }}
-    GITHUB_RUN_NUMBER: ${{ github.run_number }}
-  run: |
-    python ./.github/workflows/deploy_artifacts.py
+  send:
+    name: Send to Telegram
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # 🔥 Download artifact using SAME name
+      - name: Download APK
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ needs.build.outputs.apk_name }}
+          path: ./apk
+
+      # 🔥 Set APK path
+      - name: Set APK Path
+        run: |
+          echo "APK_PATH=./apk/${{ needs.build.outputs.apk_name }}" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install requests
+        run: pip install requests
+
+      - name: Send APK to Telegram
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TOPIC_ID: ${{ secrets.TELEGRAM_TOPIC_ID }}
+          APK_PATH: ${{ env.APK_PATH }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          python ./.github/workflows/deploy_artifacts.py
 
   updateAppData:
     name: Update App Data
