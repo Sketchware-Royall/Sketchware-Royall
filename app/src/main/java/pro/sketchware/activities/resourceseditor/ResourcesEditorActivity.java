@@ -105,7 +105,7 @@ public class ResourcesEditorActivity extends BaseAppCompatActivity {
 		binding = ResourcesEditorsActivityBinding.inflate(getLayoutInflater());
 		setContentView(binding.getRoot());
 		setSupportActionBar(binding.topAppBar);
-		binding.viewPager.setOffscreenPageLimit(1);
+		binding.viewPager.setOffscreenPageLimit(6);
 	}
 	
 	private void initializeManagers() {
