@@ -1,26 +1,46 @@
-name: 'Delete old workflow runs'
+name: Delete old workflow runs
+
 on:
   workflow_dispatch:
     inputs:
-      days:
-        description: 'Number of retains days.'
-        required: true
-        default: '20'
-
       minimum_runs:
-        description: 'The minimum runs to keep for each workflow.'
+        description: 'Minimum runs to keep per workflow'
         required: true
         default: '6'
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
-  deleteWorkflowRuns:
-    name: Delete old workflow run(s)
+  cleanup:
+    name: Cleanup old runs
     runs-on: ubuntu-latest
+
     steps:
-      - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@v2
-        with:
-          token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          retain_days: ${{ github.event.inputs.days }}
-          keep_minimum_runs: ${{ github.event.inputs.minimum_runs }}
+      - name: Delete old workflow runs (skip running)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          KEEP: ${{ github.event.inputs.minimum_runs }}
+        run: |
+          echo "Keeping last $KEEP completed runs per workflow..."
+
+          workflows=$(gh api repos/$REPO/actions/workflows --jq '.workflows[].id')
+
+          for wf in $workflows; do
+            echo "Processing workflow ID: $wf"
+
+            runs=$(gh api repos/$REPO/actions/workflows/$wf/runs \
+              --jq '.workflow_runs[] | select(.status=="completed") | .id')
+
+            count=0
+            for run in $runs; do
+              count=$((count+1))
+
+              if [ $count -gt $KEEP ]; then
+                echo "Deleting run $run"
+                gh api repos/$REPO/actions/runs/$run -X DELETE
+              fi
+            done
+          done
